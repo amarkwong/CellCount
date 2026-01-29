@@ -19,7 +19,10 @@ class BoundingBox(BaseModel):
 class CellDetection(BaseModel):
     """Single cell detection result."""
 
-    cell_type: str = Field(..., description="Type of cell detected (RBC, WBC, Platelets)")
+    cell_type: str = Field(
+        ...,
+        description="Type of cell detected (RBC, Platelets, Neutrophil, Lymphocyte, Monocyte, Eosinophil, Basophil)"
+    )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Detection confidence score")
     bounding_box: BoundingBox = Field(..., description="Bounding box coordinates")
 
@@ -28,8 +31,18 @@ class CellCounts(BaseModel):
     """Aggregated cell counts by type."""
 
     rbc: int = Field(default=0, description="Red blood cell count")
-    wbc: int = Field(default=0, description="White blood cell count")
     platelets: int = Field(default=0, description="Platelet count")
+    # WBC subtypes (differential classification)
+    neutrophil: int = Field(default=0, description="Neutrophil count")
+    lymphocyte: int = Field(default=0, description="Lymphocyte count")
+    monocyte: int = Field(default=0, description="Monocyte count")
+    eosinophil: int = Field(default=0, description="Eosinophil count")
+    basophil: int = Field(default=0, description="Basophil count")
+
+    @property
+    def total_wbc(self) -> int:
+        """Calculate total WBC count from all subtypes."""
+        return self.neutrophil + self.lymphocyte + self.monocyte + self.eosinophil + self.basophil
 
 
 class DetectionResponse(BaseModel):

@@ -46,7 +46,8 @@ async def health_check() -> HealthResponse:
     "/detect",
     response_model=DetectionResponse,
     summary="Detect Cells",
-    description="Upload an image and detect blood cells (RBCs, WBCs, Platelets).",
+    description="Upload an image and detect blood cells with WBC differential classification. "
+                "Detects: RBCs, Platelets, and WBC subtypes (Neutrophil, Lymphocyte, Monocyte, Eosinophil, Basophil).",
     responses={
         400: {"description": "Invalid image format"},
         500: {"description": "Detection processing error"},
@@ -56,13 +57,13 @@ async def detect_cells_endpoint(
     file: Annotated[UploadFile, File(description="Blood smear image to analyze")],
 ) -> DetectionResponse:
     """
-    Detect blood cells in an uploaded image.
+    Detect blood cells in an uploaded image with WBC differential classification.
 
     Args:
         file: Uploaded image file (JPEG, PNG supported).
 
     Returns:
-        DetectionResponse: Detection results with cell counts and bounding boxes.
+        DetectionResponse: Detection results with cell counts (including WBC subtypes) and bounding boxes.
 
     Raises:
         HTTPException: If image is invalid or detection fails.

@@ -22,18 +22,42 @@ from ..schemas.detection import (
 logger = logging.getLogger(__name__)
 
 # Map model class names to standardized cell types
+# New model (Ruben-F/bloodcelldiff) detects: RBC, Platelets, and 5 WBC subtypes
+# Model class names from logs: {0: 'RBC', 1: 'PLT', 2: 'NEUT', 3: 'LYMPH', 4: 'MONO', 5: 'EOS', 6: 'BASO'}
 CELL_TYPE_MAPPING = {
+    # RBC variations
     "RBC": "RBC",
-    "WBC": "WBC",
-    "Platelets": "Platelets",
-    # Handle potential variations in class names
     "rbc": "RBC",
-    "wbc": "WBC",
+    "Red Blood Cell": "RBC",
+    # Platelet variations (including abbreviated form from model)
+    "PLT": "Platelets",
+    "Platelets": "Platelets",
     "platelets": "Platelets",
     "platelet": "Platelets",
-    "Red Blood Cell": "RBC",
+    # WBC subtypes (including abbreviated forms from model)
+    "NEUT": "Neutrophil",
+    "Neutrophil": "Neutrophil",
+    "neutrophil": "Neutrophil",
+    "LYMPH": "Lymphocyte",
+    "Lymphocyte": "Lymphocyte",
+    "lymphocyte": "Lymphocyte",
+    "MONO": "Monocyte",
+    "Monocyte": "Monocyte",
+    "monocyte": "Monocyte",
+    "EOS": "Eosinophil",
+    "Eosinophil": "Eosinophil",
+    "eosinophil": "Eosinophil",
+    "BASO": "Basophil",
+    "Basophil": "Basophil",
+    "basophil": "Basophil",
+    # Legacy WBC mapping (for backwards compatibility if needed)
+    "WBC": "WBC",
+    "wbc": "WBC",
     "White Blood Cell": "WBC",
 }
+
+# List of WBC subtypes for aggregation
+WBC_SUBTYPES = ["Neutrophil", "Lymphocyte", "Monocyte", "Eosinophil", "Basophil"]
 
 
 async def detect_cells(image_data: BinaryIO) -> DetectionResponse:
@@ -78,7 +102,15 @@ async def detect_cells(image_data: BinaryIO) -> DetectionResponse:
 
         # Process results
         detections: list[CellDetection] = []
-        counts = {"RBC": 0, "WBC": 0, "Platelets": 0}
+        counts = {
+            "RBC": 0,
+            "Platelets": 0,
+            "Neutrophil": 0,
+            "Lymphocyte": 0,
+            "Monocyte": 0,
+            "Eosinophil": 0,
+            "Basophil": 0,
+        }
 
         if results and len(results) > 0:
             result = results[0]
@@ -112,9 +144,15 @@ async def detect_cells(image_data: BinaryIO) -> DetectionResponse:
                     if cell_type in counts:
                         counts[cell_type] += 1
 
+        # Calculate total WBC count from subtypes
+        total_wbc = sum(counts[subtype] for subtype in WBC_SUBTYPES)
+
         logger.info(
             f"Detection complete: {counts['RBC']} RBCs, "
-            f"{counts['WBC']} WBCs, {counts['Platelets']} Platelets"
+            f"{total_wbc} WBCs (Neutrophil: {counts['Neutrophil']}, "
+            f"Lymphocyte: {counts['Lymphocyte']}, Monocyte: {counts['Monocyte']}, "
+            f"Eosinophil: {counts['Eosinophil']}, Basophil: {counts['Basophil']}), "
+            f"{counts['Platelets']} Platelets"
         )
 
         return DetectionResponse(
@@ -122,8 +160,12 @@ async def detect_cells(image_data: BinaryIO) -> DetectionResponse:
             message="Detection completed successfully",
             counts=CellCounts(
                 rbc=counts["RBC"],
-                wbc=counts["WBC"],
                 platelets=counts["Platelets"],
+                neutrophil=counts["Neutrophil"],
+                lymphocyte=counts["Lymphocyte"],
+                monocyte=counts["Monocyte"],
+                eosinophil=counts["Eosinophil"],
+                basophil=counts["Basophil"],
             ),
             detections=detections,
             image_width=image_width,

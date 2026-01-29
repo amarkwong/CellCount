@@ -184,32 +184,114 @@ Or run multiple agents for comprehensive analysis:
 | 2026-01-17 | Use YOLOv8 fine-tuning approach | User + Team Leader | Best balance of accuracy (91.7% baseline → 95%+) and development speed |
 | 2026-01-17 | Pre-trained model: keremberke/yolov8s-blood-cell-detection | Researcher | Highest accuracy available on Hugging Face, active maintenance |
 | 2026-01-17 | Need labeling workflow for custom images | User | Has unlabeled blood smear images from lab |
+| 2026-01-26 | Pivot to WBC differential classification | User | RBC counting less valuable (analyzers do this); WBC subtypes are differentiator |
+| 2026-01-26 | Phase 1: Switch to Ruben-F/bloodcelldiff model | User + Researcher | Immediate 5 WBC subtype classification (neutrophil, lymphocyte, monocyte, eosinophil, basophil) |
+| 2026-01-26 | Phase 2: Fine-tune for immature cells | User + Researcher | Add myelocyte, metamyelocyte, band neutrophil using Raabin-WBC + TCIA datasets |
+| 2026-01-26 | Deprioritize reticulocyte/hemoglobin detection | User | Lower priority; focus on WBC differential first |
 
 ---
 
 ## Research Findings Summary
 
 ### Selected Stack
-- **ML Model:** YOLOv8 via Ultralytics (fine-tuned from keremberke/yolov8s-blood-cell-detection)
+- **ML Model (Phase 1):** YOLOv8 via Ruben-F/bloodcelldiff (5 WBC subtypes)
+- **ML Model (Phase 2):** Custom fine-tuned YOLOv8 with immature cell classes
 - **Backend:** FastAPI + Python
-- **Frontend:** TBD (React recommended)
+- **Frontend:** React 18 + TypeScript
 - **Deployment:** Docker
 
 ### Key Resources
-- **Pre-trained model:** https://huggingface.co/keremberke/yolov8s-blood-cell-detection
+- **Phase 1 Model:** https://huggingface.co/Ruben-F/bloodcelldiff
+- **Legacy Model:** https://huggingface.co/keremberke/yolov8s-blood-cell-detection
 - **Reference repo:** https://github.com/incri/BloodCell-Detector-YOLO
 - **FastAPI template:** https://github.com/Alex-Lekov/yolov8-fastapi
-- **Datasets:** TXL-PBC (1,260 images), CBC Dataset (360 images)
+
+### Datasets for Phase 2 Training
+| Dataset | Images | Key Classes | URL |
+|---------|--------|-------------|-----|
+| Raabin-WBC | ~40,000 | 5 WBC types + metamyelocyte, band | https://raabindata.com/free-data/ |
+| BM Cytomorphology (TCIA) | 170,000+ | Myelocyte (6.5k), Metamyelocyte (3k) | https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=101941770 |
+| PBC Dataset | Merged | Curated re-annotated cells | https://www.nature.com/articles/s41597-025-05980-z |
+
+### WBC Classification Target Classes
+**Phase 1 (immediate):** Neutrophil, Lymphocyte, Monocyte, Eosinophil, Basophil
+**Phase 2 (fine-tuning):** + Myelocyte, Metamyelocyte, Band neutrophil
 
 ### Data Status
-- Public datasets available for initial training
-- User has unlabeled images requiring annotation workflow
+- Phase 1: Use pre-trained bloodcelldiff model
+- Phase 2: Combine public datasets for immature cell training
+- User images: Available for validation/fine-tuning
 
 ---
 
 ## Current Phase
 
-**Phase 2: Planning** - Defining architecture and setting up labeling workflow
+**Phase 1: WBC Differential Implementation** - ✅ COMPLETE
+
+### Completed Tasks
+1. ✅ Backend model swap to Ruben-F/bloodcelldiff
+2. ✅ Detection service updated for 7 cell types
+3. ✅ Schema updated with 5 WBC subtypes
+4. ✅ Frontend TypeScript types updated
+5. ✅ CellCountPanel with WBC differential display
+6. ✅ CellTypeToggle with grouped WBC subtypes
+7. ✅ ImagePreview with subtype-specific colors
+8. ✅ App.tsx state management updated
+
+### Validation Complete (2026-01-27)
+- [x] Model downloads from Hugging Face: `Ruben-F/bloodcelldiff`
+- [x] Backend API returns 7 cell types: RBC, Platelets, Neutrophil, Lymphocyte, Monocyte, Eosinophil, Basophil
+- [x] Cell type mapping fixed for abbreviated labels (PLT, NEUT, LYMPH, MONO, EOS, BASO)
+- [x] Frontend serves and displays WBC differential
+
+---
+
+## Phase 2: Custom Model Training
+
+**Goal:** Fine-tune YOLOv8 to accurately detect WBC subtypes including immature cells (myelocyte, metamyelocyte)
+
+### Target Cell Classes (Extended)
+| Class | Category | Source Dataset |
+|-------|----------|----------------|
+| Neutrophil | Mature WBC | Raabin-WBC |
+| Lymphocyte | Mature WBC | Raabin-WBC |
+| Monocyte | Mature WBC | Raabin-WBC |
+| Eosinophil | Mature WBC | Raabin-WBC |
+| Basophil | Mature WBC | Raabin-WBC |
+| **Myelocyte** | Immature WBC | TCIA Bone Marrow |
+| **Metamyelocyte** | Immature WBC | TCIA Bone Marrow, Raabin-WBC |
+| Band Neutrophil | Immature WBC | Raabin-WBC |
+| RBC | Red Blood Cell | Both |
+| Platelets | Thrombocyte | Both |
+
+### Datasets to Acquire
+
+**1. Raabin-WBC Dataset**
+- URL: https://raabindata.com/free-data/
+- Size: ~40,000 images
+- Contains: 5 WBC types + metamyelocytes + band cells
+- Format: Cropped cell images with labels
+
+**2. TCIA Bone Marrow Cytomorphology**
+- URL: https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=101941770
+- Size: 170,000+ cell images
+- Contains: Myelocyte (6.5k), Metamyelocyte (3k), Promyelocyte (12k)
+- Format: Expert-annotated cell images
+
+### Phase 2 Tasks
+- [ ] Download and evaluate Raabin-WBC dataset
+- [ ] Download and evaluate TCIA Bone Marrow dataset
+- [ ] Convert datasets to YOLO format (if needed)
+- [ ] Combine and balance dataset classes
+- [ ] Set up training environment
+- [ ] Fine-tune YOLOv8 model
+- [ ] Validate on holdout test set
+- [ ] Integrate new model into backend
+
+### Training Strategy
+1. Start with `yolov8s.pt` (small) or `yolov8m.pt` (medium) base
+2. Transfer learning from existing blood cell weights
+3. Target: 80%+ mAP on extended cell classes
 
 ---
 

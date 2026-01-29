@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     # Model settings
-    model_name: str = "keremberke/yolov8s-blood-cell-detection"
+    model_name: str = "Ruben-F/bloodcelldiff"
     model_confidence_threshold: float = 0.1  # Lowered for testing
     model_iou_threshold: float = 0.45
 

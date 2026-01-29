@@ -1,9 +1,16 @@
 /**
  * ImagePreview component with cell detection overlays.
+ * Updated to support WBC differential classification (5 subtypes).
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { CellDetection, VisibleCellTypes } from '../types/detection';
+import {
+  CellDetection,
+  CellType,
+  VisibleCellTypes,
+  CELL_TYPE_COLORS,
+  isWBCSubtype,
+} from '../types/detection';
 
 interface ImagePreviewProps {
   imageUrl: string;
@@ -13,11 +20,30 @@ interface ImagePreviewProps {
   imageHeight: number;
 }
 
-// Cell type colors from UX spec
-const CELL_COLORS: Record<string, string> = {
-  RBC: '#E07A5F',      // Coral Red
-  WBC: '#3D5A80',      // Ocean Blue
-  Platelets: '#F2CC8F', // Amber Yellow
+/**
+ * Get the rendering shape for a cell type
+ * RBC = ellipse (circle)
+ * WBC subtypes = rounded rectangle (square)
+ * Platelets = triangle
+ */
+const getCellShape = (cellType: CellType): 'ellipse' | 'rect' | 'polygon' => {
+  if (cellType === 'RBC') return 'ellipse';
+  if (cellType === 'Platelets') return 'polygon';
+  // All WBC subtypes use rectangle
+  return 'rect';
+};
+
+/**
+ * Get the stroke dash array for a cell type
+ * RBC = solid
+ * WBC subtypes = dashed
+ * Platelets = dotted
+ */
+const getStrokeDasharray = (cellType: CellType): string => {
+  if (cellType === 'RBC') return 'none';
+  if (cellType === 'Platelets') return '2,2';
+  // All WBC subtypes use dashed
+  return '6,3';
 };
 
 export const ImagePreview: React.FC<ImagePreviewProps> = ({
@@ -55,9 +81,10 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
   }, [imageWidth, imageHeight]);
 
   // Filter detections based on visibility
-  const visibleDetections = detections.filter(
-    (detection) => visibleCellTypes[detection.cell_type]
-  );
+  const visibleDetections = detections.filter((detection) => {
+    const cellType = detection.cell_type as CellType;
+    return visibleCellTypes[cellType];
+  });
 
   // Calculate scaled image dimensions
   const scaledWidth = imageWidth * scale;
@@ -66,6 +93,87 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
   // Calculate offset to center the image
   const offsetX = (containerSize.width - scaledWidth) / 2;
   const offsetY = (containerSize.height - scaledHeight) / 2;
+
+  // Render a single detection marker
+  const renderDetectionMarker = (detection: CellDetection, index: number) => {
+    const { x_min, y_min, x_max, y_max } = detection.bounding_box;
+    const cellType = detection.cell_type as CellType;
+    const color = CELL_TYPE_COLORS[cellType] || '#FFFFFF';
+    const width = x_max - x_min;
+    const height = y_max - y_min;
+    const shape = getCellShape(cellType);
+    const strokeDasharray = getStrokeDasharray(cellType);
+
+    if (shape === 'ellipse') {
+      // Circle/Ellipse for RBC
+      const cx = x_min + width / 2;
+      const cy = y_min + height / 2;
+      const rx = width / 2;
+      const ry = height / 2;
+
+      return (
+        <ellipse
+          key={`${cellType}-${index}`}
+          cx={cx}
+          cy={cy}
+          rx={rx}
+          ry={ry}
+          fill={`${color}1A`} // 10% opacity fill
+          stroke={color}
+          strokeWidth={2 / scale}
+          className="transition-opacity duration-200"
+        />
+      );
+    } else if (shape === 'rect') {
+      // Rounded rectangle for WBC subtypes
+      return (
+        <rect
+          key={`${cellType}-${index}`}
+          x={x_min}
+          y={y_min}
+          width={width}
+          height={height}
+          rx={4}
+          ry={4}
+          fill={`${color}1A`} // 10% opacity fill
+          stroke={color}
+          strokeWidth={2 / scale}
+          strokeDasharray={strokeDasharray}
+          className="transition-opacity duration-200"
+        />
+      );
+    } else {
+      // Triangle for Platelets
+      const cx = x_min + width / 2;
+      const topY = y_min;
+      const bottomY = y_max;
+      const points = `${cx},${topY} ${x_min},${bottomY} ${x_max},${bottomY}`;
+
+      return (
+        <polygon
+          key={`${cellType}-${index}`}
+          points={points}
+          fill={`${color}26`} // 15% opacity fill
+          stroke={color}
+          strokeWidth={2 / scale}
+          strokeDasharray={strokeDasharray}
+          className="transition-opacity duration-200"
+        />
+      );
+    }
+  };
+
+  // Count visible detections by type for the legend
+  const getVisibleCountByType = (): Map<CellType, number> => {
+    const countMap = new Map<CellType, number>();
+    visibleDetections.forEach((detection) => {
+      const cellType = detection.cell_type as CellType;
+      countMap.set(cellType, (countMap.get(cellType) || 0) + 1);
+    });
+    return countMap;
+  };
+
+  const visibleCountByType = getVisibleCountByType();
 
   return (
     <div
@@ -97,79 +205,9 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
           viewBox={`0 0 ${imageWidth} ${imageHeight}`}
           preserveAspectRatio="xMidYMid meet"
         >
-          {visibleDetections.map((detection, index) => {
-            const { x_min, y_min, x_max, y_max } = detection.bounding_box;
-            const color = CELL_COLORS[detection.cell_type] || '#FFFFFF';
-            const width = x_max - x_min;
-            const height = y_max - y_min;
-
-            // Different stroke styles for different cell types
-            let strokeDasharray = 'none';
-            if (detection.cell_type === 'WBC') {
-              strokeDasharray = '6,3'; // Dashed
-            } else if (detection.cell_type === 'Platelets') {
-              strokeDasharray = '2,2'; // Dotted
-            }
-
-            // Different shapes for different cell types
-            if (detection.cell_type === 'RBC') {
-              // Circle for RBC
-              const cx = x_min + width / 2;
-              const cy = y_min + height / 2;
-              const rx = width / 2;
-              const ry = height / 2;
-
-              return (
-                <ellipse
-                  key={`rbc-${index}`}
-                  cx={cx}
-                  cy={cy}
-                  rx={rx}
-                  ry={ry}
-                  fill={`${color}1A`} // 10% opacity fill
-                  stroke={color}
-                  strokeWidth={2 / scale}
-                  className="transition-opacity duration-200"
-                />
-              );
-            } else if (detection.cell_type === 'WBC') {
-              // Rounded square for WBC
-              return (
-                <rect
-                  key={`wbc-${index}`}
-                  x={x_min}
-                  y={y_min}
-                  width={width}
-                  height={height}
-                  rx={4}
-                  ry={4}
-                  fill={`${color}1A`} // 10% opacity fill
-                  stroke={color}
-                  strokeWidth={2 / scale}
-                  strokeDasharray={strokeDasharray}
-                  className="transition-opacity duration-200"
-                />
-              );
-            } else {
-              // Triangle for Platelets
-              const cx = x_min + width / 2;
-              const topY = y_min;
-              const bottomY = y_max;
-              const points = `${cx},${topY} ${x_min},${bottomY} ${x_max},${bottomY}`;
-
-              return (
-                <polygon
-                  key={`platelet-${index}`}
-                  points={points}
-                  fill={`${color}26`} // 15% opacity fill
-                  stroke={color}
-                  strokeWidth={2 / scale}
-                  strokeDasharray={strokeDasharray}
-                  className="transition-opacity duration-200"
-                />
-              );
-            }
-          })}
+          {visibleDetections.map((detection, index) =>
+            renderDetectionMarker(detection, index)
+          )}
         </svg>
       </div>
 
@@ -183,6 +221,30 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({
         <span className="font-semibold">{visibleDetections.length}</span>
         <span className="text-gray-300"> / {detections.length} visible</span>
       </div>
+
+      {/* Mini legend showing visible WBC subtypes (bottom left) */}
+      {visibleDetections.some((d) => isWBCSubtype(d.cell_type as CellType)) && (
+        <div className="absolute bottom-3 left-3 bg-black bg-opacity-60 text-white px-3 py-2 rounded text-xs">
+          <div className="font-semibold mb-1">WBC Types</div>
+          <div className="flex flex-wrap gap-2">
+            {(['Neutrophil', 'Lymphocyte', 'Monocyte', 'Eosinophil', 'Basophil'] as CellType[]).map(
+              (type) => {
+                const count = visibleCountByType.get(type) || 0;
+                if (count === 0) return null;
+                return (
+                  <div key={type} className="flex items-center gap-1">
+                    <span
+                      className="w-2 h-2 rounded-sm"
+                      style={{ backgroundColor: CELL_TYPE_COLORS[type] }}
+                    />
+                    <span>{count}</span>
+                  </div>
+                );
+              }
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

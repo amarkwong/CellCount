@@ -1,5 +1,6 @@
 /**
  * Main App component for CellCount frontend.
+ * Updated to support WBC differential classification (5 subtypes).
  */
 
 import React, { useState, useCallback } from 'react';
@@ -17,6 +18,32 @@ import {
 
 type AppState = 'upload' | 'loading' | 'results' | 'error';
 
+/**
+ * Default cell counts with WBC differential
+ */
+const DEFAULT_COUNTS: CellCounts = {
+  rbc: 0,
+  platelets: 0,
+  neutrophil: 0,
+  lymphocyte: 0,
+  monocyte: 0,
+  eosinophil: 0,
+  basophil: 0,
+};
+
+/**
+ * Default visibility state for all cell types including WBC subtypes
+ */
+const DEFAULT_VISIBLE_TYPES: VisibleCellTypes = {
+  RBC: true,
+  Platelets: true,
+  Neutrophil: true,
+  Lymphocyte: true,
+  Monocyte: true,
+  Eosinophil: true,
+  Basophil: true,
+};
+
 const App: React.FC = () => {
   // App state
   const [appState, setAppState] = useState<AppState>('upload');
@@ -27,16 +54,14 @@ const App: React.FC = () => {
   const [imageWidth, setImageWidth] = useState(0);
   const [imageHeight, setImageHeight] = useState(0);
 
-  // Detection state
-  const [counts, setCounts] = useState<CellCounts>({ rbc: 0, wbc: 0, platelets: 0 });
+  // Detection state - updated to support WBC differential
+  const [counts, setCounts] = useState<CellCounts>(DEFAULT_COUNTS);
   const [detections, setDetections] = useState<CellDetection[]>([]);
 
-  // Visibility state
-  const [visibleCellTypes, setVisibleCellTypes] = useState<VisibleCellTypes>({
-    RBC: true,
-    WBC: true,
-    Platelets: true,
-  });
+  // Visibility state - updated to support WBC subtypes
+  const [visibleCellTypes, setVisibleCellTypes] = useState<VisibleCellTypes>(
+    DEFAULT_VISIBLE_TYPES
+  );
 
   // Upload progress (simulated for UX)
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -103,9 +128,9 @@ const App: React.FC = () => {
     // Reset state
     setAppState('upload');
     setImageUrl(null);
-    setCounts({ rbc: 0, wbc: 0, platelets: 0 });
+    setCounts(DEFAULT_COUNTS);
     setDetections([]);
-    setVisibleCellTypes({ RBC: true, WBC: true, Platelets: true });
+    setVisibleCellTypes(DEFAULT_VISIBLE_TYPES);
     setError(null);
     setUploadProgress(0);
   }, [imageUrl]);
@@ -173,7 +198,7 @@ const App: React.FC = () => {
                                      flex items-center justify-center text-xs font-medium">
                         2
                       </span>
-                      <span>AI will automatically detect and count RBCs, WBCs, and Platelets</span>
+                      <span>AI will detect RBCs, WBC subtypes (Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils), and Platelets</span>
                     </li>
                     <li className="flex gap-3">
                       <span className="flex-shrink-0 w-6 h-6 rounded-full bg-deep-navy text-white
@@ -187,7 +212,7 @@ const App: React.FC = () => {
                                      flex items-center justify-center text-xs font-medium">
                         4
                       </span>
-                      <span>View counts, ratios, and identify any missed or overlapping cells</span>
+                      <span>View counts, WBC differential, and cell ratios</span>
                     </li>
                   </ol>
                 </div>
@@ -268,7 +293,7 @@ const App: React.FC = () => {
       <footer className="border-t border-gray-200 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-center text-sm text-gray-500">
-            CellCount - Blood Cell Detection powered by YOLOv8
+            CellCount - Blood Cell Detection with WBC Differential powered by YOLOv8
           </p>
         </div>
       </footer>

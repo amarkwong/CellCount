@@ -1,0 +1,61 @@
+# =============================================================================
+# CellCount Infrastructure - Example Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and update with your values
+# =============================================================================
+
+# AWS Region (choose closest to your users)
+# Common options: us-east-1, us-west-2, eu-west-1, ap-southeast-2
+aws_region = "ap-southeast-2"
+
+# Environment name
+environment = "prod"
+
+# Project name (used for resource naming)
+project_name = "cellcount"
+
+# -----------------------------------------------------------------------------
+# Domain Configuration
+# -----------------------------------------------------------------------------
+
+# Your API subdomain (e.g., api.yourdomain.com)
+domain_name = "api.yourdomain.com"
+
+# CORS origins - comma-separated list of allowed origins
+# Include your Cloudflare Pages domain and any local development URLs
+cors_origins = "https://cellcount.pages.dev,https://yourdomain.com,http://localhost:5173"
+
+# -----------------------------------------------------------------------------
+# GitHub Repository (Optional)
+# -----------------------------------------------------------------------------
+
+# If provided, the EC2 instance will clone this repo on startup
+# Leave empty to use the minimal backend created by user-data script
+github_repo = "https://github.com/yourusername/CellCount.git"
+
+# -----------------------------------------------------------------------------
+# SSH Access (Optional but Recommended)
+# -----------------------------------------------------------------------------
+
+# Name of an existing EC2 key pair (create in AWS Console first)
+# Leave empty to use only SSM Session Manager for access
+key_pair_name = ""
+
+# IMPORTANT: Restrict SSH to your IP for security
+# Find your IP: curl ifconfig.me
+# Format: ["YOUR_IP/32"]
+ssh_allowed_cidrs = ["0.0.0.0/0"]  # WARNING: Open to all - change this!
+
+# -----------------------------------------------------------------------------
+# ML Model
+# -----------------------------------------------------------------------------
+
+# HuggingFace model for blood cell detection
+model_name = "Ruben-F/bloodcelldiff"
+
+# -----------------------------------------------------------------------------
+# Cloudflare (Reference Only)
+# -----------------------------------------------------------------------------
+
+# Your Cloudflare Zone ID (found in dashboard, for reference)
+cloudflare_zone_id = ""
